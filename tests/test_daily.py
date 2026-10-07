@@ -9,9 +9,8 @@ import sys
 from PIL import Image as PILImage
 import pytest
 
-from len_bot.next.platform.messages import ChatMessage, Segment, Sender
-from len_bot.next.plugin import Image, Text
-from len_bot.next.plugin_testing import PluginTest
+from len_bot.plugin import ChatMessage, Segment, Sender, Image, Text
+from len_bot.plugin_testing import PluginTest
 
 SOURCE = Path(__file__).resolve().parents[1]
 SCENE = 'onebot:group:80001'

@@ -10,9 +10,8 @@ import shutil
 
 import pytest
 
-from len_bot.next.platform.messages import ChatMessage, Segment, Sender
-from len_bot.next.plugin import Invocation
-from len_bot.next.plugin_testing import PluginTest
+from len_bot.plugin import ChatMessage, Segment, Sender, Invocation
+from len_bot.plugin_testing import PluginTest
 
 SCENE = 'onebot:group:80001'
 OTHER = 'onebot:group:80002'
