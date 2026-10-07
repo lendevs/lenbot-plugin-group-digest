@@ -62,3 +62,11 @@ uv run --project /path/to/LenBot --no-sync pytest -q -c pyproject.toml tests
 ```
 
 测试使用合成消息和本机服务，不调用真实模型、不发送 QQ 消息。
+
+## 工具接口
+
+工具采用接口 1 的显式简介、Field 参数说明与 `prompts/tools.md` 共享指南，返回原生 JSON 或文本。用 `PluginTest.preview_tools()` 查看模型说明、参数与可用性；模型服务默认关闭，真实发送仍单独核对。兼容和更新事项见 [CHANGELOG](CHANGELOG.md)。
+
+CI 固定到包含当前插件接口的宿主开发提交；本次未创建版本标签或 Release。catalog-entry.json 只记录开发安装来源，未公开插件不加入主目录。
+
+本机生成 ZIP：`uv run --no-project --python 3.13 python scripts/package.py /tmp/plugin.zip`。打包取 Git 已跟踪的运行源码和资源，新增文件需先加入 Git；不会收录本机环境、测试或配置。
