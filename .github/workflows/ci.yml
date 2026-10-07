@@ -15,8 +15,9 @@ jobs:
           repository: lendevs/LenBot
           ref: 9a29ed26301c3e7458b165563a50f9dabf459d31
           path: host-source
+      - run: sudo apt-get update && sudo apt-get install -y fonts-noto-cjk
       - run: uv python install 3.13
       - run: uv venv --python 3.13
       - run: uv pip install ./host-source pytest pytest-asyncio
-      - run: uv run --no-project --no-sync --python ../.venv/bin/python python -m pytest -q
+      - run: uv run --no-project --python ../.venv/bin/python python -m pytest -q
         working-directory: plugin

@@ -106,7 +106,8 @@ class GroupDigest(Plugin):
         after, before = window.resolve(ctx.now(), ctx.timezone(), hours=int(text) if text else 24)
         await ctx.reply(self.begin(ctx.scene, after, before))
 
-    @tool("group_summary_card", "按时间范围生成本群的群聊总结卡片并发回群里：过去 12 小时用 hours=12；"
+    @tool("group_summary_card", "按时间范围生成本群日报（群聊总结卡片），生成后发回当前群。"
+                                "有人要回顾今天、昨天或最近群里聊了什么时使用。过去 12 小时用 hours=12；"
                                 "今天下午、指定日期或昨天整天用 start_at、end_at，按本群时区给出 ISO 日期时间。"
                                 "过去 24 小时用 hours=24。跨度最多 72 小时，小时数与起止时间不能混用。"
                                 "在后台生成，调用后立即返回；卡片做好后会自动发出，不需要再转述内容。")
