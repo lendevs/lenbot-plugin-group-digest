@@ -1,7 +1,7 @@
 {
   "name": "group_digest",
   "title": "群聊总结与群工作",
-  "description": "按指定时段生成本群日报卡片，可每天定时发送或按群增量；文字总结与真实来源群工作。",
+  "description": "每天定时或按需生成群聊总结卡片；/群总结 文字总结，/群工作 委派长工作。",
   "authors": [
     "LEN5010"
   ],
@@ -11,14 +11,19 @@
   "requires_lenbot": ">=0.2,<1",
   "category": "工作工具",
   "capabilities": [
-    "时段日报",
-    "按群增量",
-    "真实来源委派"
+    "每日总结卡片",
+    "分批模型生成",
+    "工作任务",
+    "只读技能",
+    "按群增量整理"
   ],
   "usage": [
-    "配置后选择启用的群；模型工具需要当前角色许可。",
-    "参数、共享指南与实际发送语义可在群聊工具页预览。",
-    "最低宿主基线和来源参数变更见 CHANGELOG.md。"
+    "安装后填写配置，并选择启用的群。",
+    "/群日报 或 /群日报 6 生成总结卡片；也可以允许工具 group_summary_card。",
+    "每日总结默认 22:00，只有选入 daily_scenes 的群才自动发送。",
+    "/群总结 生成文字总结；/群工作 委派长工作，需要任务能力和权限。",
+    "增量默认关闭，按群开启后每小时整理；自然语言可指定 hours 或 start_at、end_at。",
+    "自然语言群工作使用 group_work 和真实 source_message_id；报告工具返回后台状态并自行交付。"
   ],
   "install": "git",
   "repository": "https://github.com/lendevs/lenbot-plugin-group-digest",
