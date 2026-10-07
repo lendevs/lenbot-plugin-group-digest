@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 from zoneinfo import ZoneInfo
 
-from len_bot.next.plugin import PluginContext
+from len_bot.plugin import PluginContext
 
 PROMPTS = Path(__file__).with_name("prompts")
 PAGE = 500

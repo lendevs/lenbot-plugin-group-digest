@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import Field
 
-from len_bot.next.plugin import Invocation, Plugin, command, tool
+from len_bot.plugin import Invocation, Plugin, command, tool
 
 from . import card, daily, incremental, window
 
