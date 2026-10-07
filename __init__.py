@@ -30,7 +30,7 @@ def recent(ctx: Invocation) -> str:
 
 class GroupDigest(Plugin):
     async def start(self) -> None:
-        self.running: set[str] = set()
+        self.running: dict[str, tuple[float, float]] = {}
         self.locks = {scene: asyncio.Lock() for scene in self.ctx.enabled_scenes}
         self.cache = incremental.Cache(self.ctx)
         match = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", str(self.ctx.config["daily_time"]))
@@ -59,14 +59,14 @@ class GroupDigest(Plugin):
         """Start in the background; the caller (a chat turn or a command) does not wait for the model."""
         if scene in self.running:
             return "这个群的总结已经在生成了，完成后会发出来。"
-        self.running.add(scene)
+        self.running[scene] = (after, before)
         self.ctx.start_task(f"群聊总结 {scene}", self.produce(scene, after, before, requested=True))
         zone = ZoneInfo(self.ctx.timezone(scene))
         period = f"{datetime.fromtimestamp(after, zone):%m月%d日 %H:%M} 至 {datetime.fromtimestamp(before, zone):%m月%d日 %H:%M}"
         return f"开始生成群聊总结（{period}），生成好后卡片会直接发到群里。"
 
     async def produce(self, scene: str, after: float, before: float, *, requested: bool) -> None:
-        self.running.add(scene)
+        self.running[scene] = (after, before)
         try:
             async with self.locks[scene]:
                 lines = daily.read_window(self.ctx, scene, after, before)
@@ -79,15 +79,15 @@ class GroupDigest(Plugin):
                 summary = await daily.summarize(self.ctx, scene, lines, after, before,
                                                 role=self.ctx.config["model_role"], budget=self.ctx.config["batch_chars"],
                                                 notes=notes)
-            image = card.render(summary, card.find_font(self.ctx.config["font_path"]),
-                                "群聊总结")
+            image = await asyncio.to_thread(card.render, summary, card.find_font(self.ctx.config["font_path"]),
+                                            "群聊总结")
             await self.ctx.send_image(scene, image, summary.description())
         except Exception as error:
             self.ctx.report_error(f"群聊总结 {scene}", error)
             if requested:
                 await self.ctx.send(scene, f"群聊总结没生成出来：{error}")
         finally:
-            self.running.discard(scene)
+            self.running.pop(scene, None)
 
     @command("群总结", "对本群最近消息做一次显式模型生成，可补充总结要求")
     async def summarize(self, ctx: Invocation, args: str) -> None:
@@ -110,13 +110,27 @@ class GroupDigest(Plugin):
                                 "有人要回顾今天、昨天或最近群里聊了什么时使用。过去 12 小时用 hours=12；"
                                 "今天下午、指定日期或昨天整天用 start_at、end_at，按本群时区给出 ISO 日期时间。"
                                 "过去 24 小时用 hours=24。跨度最多 72 小时，小时数与起止时间不能混用。"
-                                "在后台生成，调用后立即返回；卡片做好后会自动发出，不需要再转述内容。")
+                                "在后台生成，调用后立即返回；卡片做好后会自动发出，不需要再转述内容。", summary='生成本群指定时段的日报卡片并自动发送')
     async def summary_tool(self, ctx: Invocation,
                            hours: Annotated[int | None, Field(ge=1, le=72, description="向前回溯的小时数；省略全部参数时为 24 小时")] = None,
                            *, start_at: Annotated[str | None, Field(description="范围起点，ISO 日期时间；无时区时使用本群时区")] = None,
-                           end_at: Annotated[str | None, Field(description="范围终点（不含），ISO 日期时间，不能晚于当前时间")] = None) -> str:
+                           end_at: Annotated[str | None, Field(description="范围终点（不含），ISO 日期时间，不能晚于当前时间")] = None) -> dict:
         after, before = window.resolve(ctx.now(), ctx.timezone(), hours=hours, start_at=start_at, end_at=end_at)
-        return self.begin(ctx.scene, after, before)
+        started = ctx.scene not in self.running
+        message = self.begin(ctx.scene, after, before)
+        after, before = self.running[ctx.scene]
+        zone = ZoneInfo(ctx.timezone())
+        return {"status": "started" if started else "already_running", "message": message,
+                "delivery": "plugin", "window": {
+                    "start_at": datetime.fromtimestamp(after, zone).isoformat(),
+                    "end_at": datetime.fromtimestamp(before, zone).isoformat()}}
+
+    @tool("group_work", "按真实请求人的明确要求委派长工作或文件交付，使用最近群聊作为背景。"
+          "返回任务 ID 表示已排队；任务完成后由宿主交付，不能声称已完成。",
+          summary="根据群聊委派长工作或文件交付", needs_source=True)
+    async def work_tool(self, ctx: Invocation,
+                        goal: Annotated[str, Field(min_length=1, description="真实请求人的目标和交付要求")]) -> dict:
+        return await ctx.delegate(goal, goal, context=recent(ctx))
 
     @command("群工作", "基于最近群聊委派长工作或文件交付；参数是实际交付要求")
     async def work(self, ctx: Invocation, args: str) -> None:

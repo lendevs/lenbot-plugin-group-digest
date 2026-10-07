@@ -1,5 +1,5 @@
 name = "group_digest"
-version = "1.2.0"
+version = "1.3.0"
 interface = 1
 requires_lenbot = ">=0.2,<1"
 requires_python = ">=3.13"
@@ -7,7 +7,10 @@ platforms = ["linux", "darwin", "win32"]
 reload = "plugin"
 authors = ["LEN5010"]
 license = "AGPL-3.0-only"
-description = "/群日报 和机器人工具生成过去 24 小时的总结卡片，可每天定时发；/群总结 单次文字总结；/群工作 委派长工作。"
+description = "按指定时段生成本群日报卡片，可每天定时发送或按群增量；文字总结与真实来源群工作。"
+
+[model]
+instructions = "prompts/tools.md"
 
 [config.message_limit]
 type = "integer"

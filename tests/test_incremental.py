@@ -7,14 +7,12 @@ import json
 from pathlib import Path
 import re
 import shutil
-from types import MethodType
 
 import pytest
 
 from len_bot.next.platform.messages import ChatMessage, Segment, Sender
 from len_bot.next.plugin import Invocation
 from len_bot.next.plugin_testing import PluginTest
-from len_bot.next.plugins.host import PluginHost
 
 SCENE = 'onebot:group:80001'
 OTHER = 'onebot:group:80002'
@@ -31,7 +29,7 @@ def package(tmp_path):
 
 
 @asynccontextmanager
-async def model_source():
+async def model_source(gate=None):
     calls = []
     async def respond(reader, writer):
         headers = await reader.readuntil(b'\r\n\r\n')
@@ -51,6 +49,8 @@ async def model_source():
             quotes = [quote for note in notes for quote in note['quotes']]
             result = {'headline': '选定时间里的安排', 'topics': [{'title': '安排', 'summary': '讨论活动', 'people': ['小满']}],
                       'quotes': [{'index': quote['index'], 'comment': '原话'} for quote in quotes]}
+        if gate is not None:
+            await gate.wait()
         body = json.dumps({'id': 'synthetic', 'object': 'chat.completion', 'created': 1790000000,
                            'model': 'local', 'choices': [{'index': 0, 'message': {'role': 'assistant',
                            'content': json.dumps(result, ensure_ascii=False)}, 'finish_reason': 'stop'}],
@@ -65,13 +65,9 @@ async def model_source():
         yield f'http://127.0.0.1:{server.sockets[0].getsockname()[1]}/v1', calls
 
 
-def connect_model(bot, url):
-    bot.host.now = lambda: NOW
-    bot.host.config.models.providers['local'].base_url = url
-    bot.host.config.models.roles.mind.context_window_tokens = 65536
-    bot.host.runtime.slots = None
-    bot.host.runtime.mcp = None
-    bot.host.generate = MethodType(PluginHost.generate, bot.host)
+def models(url):
+    return {'providers': {'local': {'api': 'openai-chat', 'base_url': url, 'api_key': 'synthetic'}},
+            'roles': {'mind': {'provider': 'local', 'model': 'local', 'context_window_tokens': 65536}}}
 
 
 def message(bot, hour: int, minute: int, text: str, *, scene=SCENE):
@@ -95,8 +91,7 @@ def chunk_calls(calls):
 
 @pytest.mark.asyncio
 async def test_hourly_notes_survive_reload_and_only_new_hour_is_analyzed(package):
-    async with model_source() as (url, calls), PluginTest(package, config={'incremental_scenes': [SCENE]}, scenes=[SCENE, OTHER]) as bot:
-        connect_model(bot, url)
+    async with model_source() as (url, calls), PluginTest(package, config={'incremental_scenes': [SCENE]}, scenes=[SCENE, OTHER], now=lambda: NOW, models=models(url)) as bot:
         for index in range(6):
             message(bot, 13, index * 5, f'午后安排 {index}')
         message(bot, 12, 5, '另一个群', scene=OTHER)
@@ -112,6 +107,7 @@ async def test_hourly_notes_survive_reload_and_only_new_hour_is_analyzed(package
         await record.instance.prepare(Invocation(record.context, SCENE))
         assert len(chunk_calls(calls)) == 2
         result = await bot.tool('group_summary_card', {'start_at': '2026-10-06T13:00:00', 'end_at': '2026-10-06T15:00:00'})
+        assert json.loads(result)['status'] == 'started'
         assert '13:00' in result and '15:00' in result
         await finish(bot)
         assert len(chunk_calls(calls)) == 2 and calls[-1][0] == 'final'
@@ -122,8 +118,7 @@ async def test_hourly_notes_survive_reload_and_only_new_hour_is_analyzed(package
 
 @pytest.mark.asyncio
 async def test_partial_hour_reads_only_requested_messages_and_recall_invalidates_notes(package):
-    async with model_source() as (url, calls), PluginTest(package, config={'incremental_scenes': [SCENE]}) as bot:
-        connect_model(bot, url)
+    async with model_source() as (url, calls), PluginTest(package, config={'incremental_scenes': [SCENE]}, now=lambda: NOW, models=models(url)) as bot:
         outside = message(bot, 13, 5, '范围外秘密')
         inside = [message(bot, 13, 30 + index * 4, f'范围内 {index}') for index in range(6)]
         record = bot.host.plugins['digest_copy']
@@ -142,10 +137,9 @@ async def test_partial_hour_reads_only_requested_messages_and_recall_invalidates
 
 @pytest.mark.asyncio
 async def test_disabled_incremental_and_tool_time_validation(package):
-    async with PluginTest(package, scenes=[SCENE, OTHER]) as bot:
-        bot.host.now = lambda: NOW
+    async with PluginTest(package, scenes=[SCENE, OTHER], now=lambda: NOW) as bot:
         assert all(item['name'] != 'hourly-notes' for record in bot.state()['plugins'] for item in record['crons'])
-        schema = bot.host.tools_for(SCENE)[0].parameters
+        schema = next(item for item in bot.preview_tools() if item['name'] == 'group_summary_card')['parameters']
         assert 'description' in schema['properties']['start_at']
         assert {'hours', 'start_at', 'end_at'} <= schema['properties'].keys()
         for arguments in ({'hours': 0}, {'hours': 12, 'start_at': '2026-10-06T12:00:00', 'end_at': '2026-10-06T14:00:00'},
@@ -159,8 +153,7 @@ async def test_disabled_incremental_and_tool_time_validation(package):
 
 @pytest.mark.asyncio
 async def test_relative_twelve_hours_reads_exact_interval(package):
-    async with model_source() as (url, calls), PluginTest(package) as bot:
-        connect_model(bot, url)
+    async with model_source() as (url, calls), PluginTest(package, now=lambda: NOW, models=models(url)) as bot:
         message(bot, 5, 59, '十二小时前的消息')
         for index in range(6):
             message(bot, 8 + index, 0, f'近十二小时 {index}')
@@ -168,3 +161,18 @@ async def test_relative_twelve_hours_reads_exact_interval(package):
         await finish(bot)
         assert calls[-1][1]['统计']['消息数'] == 6
         assert '十二小时前的消息' not in calls[-1][1]['群聊记录']
+
+
+@pytest.mark.asyncio
+async def test_duplicate_report_returns_actual_running_window(package):
+    gate = asyncio.Event()
+    async with model_source(gate) as (url, calls), PluginTest(package, now=lambda: NOW, models=models(url)) as bot:
+        for index in range(6):
+            message(bot, 13, index * 5, f'安排 {index}')
+        first = json.loads(await bot.tool('group_summary_card', {'hours': 12}))
+        second = json.loads(await bot.tool('group_summary_card', {'hours': 1}))
+        assert first['status'] == 'started' and second['status'] == 'already_running'
+        assert first['window'] == second['window']
+        gate.set()
+        await bot.wait_tasks('群聊总结 ')
+        assert len(bot.deliveries) == 1
