@@ -1,0 +1,4 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--confcutdir=tests --import-mode=importlib"
+asyncio_mode = "auto"
