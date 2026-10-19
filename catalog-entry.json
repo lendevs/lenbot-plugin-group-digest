@@ -6,7 +6,7 @@
     "LEN5010"
   ],
   "license": "AGPL-3.0-only",
-  "version": "1.3.0",
+  "version": "1.3.1",
   "interface": 1,
   "requires_lenbot": ">=0.2,<1",
   "category": "工作工具",
@@ -27,5 +27,12 @@
   ],
   "install": "git",
   "repository": "https://github.com/lendevs/lenbot-plugin-group-digest",
-  "ref": "main"
+  "ref": "main",
+  "permissions": [
+    "send",
+    "history",
+    "generate",
+    "delegate",
+    "schedule"
+  ]
 }

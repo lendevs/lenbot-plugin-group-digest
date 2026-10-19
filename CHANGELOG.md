@@ -1,3 +1,7 @@
+# 1.3.1
+
+声明 send/history/generate/delegate/schedule 宿主能力，明确真实来源委派与测试范围；配置、数据格式和工具名称不变。
+
 # 1.3.0
 
 需要 LenBot 0.2.0 起的插件接口 1（从 `len_bot.plugin` 导入）。插件名、配置和业务数据不变，无需数据迁移。
