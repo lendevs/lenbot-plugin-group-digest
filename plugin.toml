@@ -61,14 +61,14 @@ default = ""
 type = "scene_list"
 label = "每小时增量整理的群"
 group = "增量模式"
-description = "默认关闭；所选群每小时用模型整理已结束时段，不发送消息。生成日报时复用摘要"
+description = "默认关闭；所选群每小时用模型整理已结束时段，生成日报时复用摘要"
 default = []
 
 [config.cache_days]
 type = "integer"
 label = "增量摘要保留天数"
 group = "增量模式"
-description = "只保存在本插件数据中，默认 3 天；过期自动删除，不进入长期记忆"
+description = "保存在本插件数据中，默认 3 天，过期自动删除"
 minimum = 3
 maximum = 30
 default = 3

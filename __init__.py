@@ -56,7 +56,7 @@ class GroupDigest(Plugin):
             await self.produce(ctx.scene, after, before, requested=False)
 
     def begin(self, scene: str, after: float, before: float) -> str:
-        """Start in the background; the caller (a chat turn or a command) does not wait for the model."""
+        """Start in the background and return a status line to the caller right away."""
         if scene in self.running:
             return "这个群的总结已经在生成了，完成后会发出来。"
         self.running[scene] = (after, before)
@@ -110,7 +110,7 @@ class GroupDigest(Plugin):
                                 "有人要回顾今天、昨天或最近群里聊了什么时使用。过去 12 小时用 hours=12；"
                                 "今天下午、指定日期或昨天整天用 start_at、end_at，按本群时区给出 ISO 日期时间。"
                                 "过去 24 小时用 hours=24。跨度最多 72 小时，小时数与起止时间不能混用。"
-                                "在后台生成，调用后立即返回；卡片做好后会自动发出，不需要再转述内容。", summary='生成本群指定时段的日报卡片并自动发送')
+                                "在后台生成，调用后立即返回；卡片做好后插件自动发出。", summary='生成本群指定时段的日报卡片并自动发送')
     async def summary_tool(self, ctx: Invocation,
                            hours: Annotated[int | None, Field(ge=1, le=72, description="向前回溯的小时数；省略全部参数时为 24 小时")] = None,
                            *, start_at: Annotated[str | None, Field(description="范围起点，ISO 日期时间；无时区时使用本群时区")] = None,
@@ -126,7 +126,7 @@ class GroupDigest(Plugin):
                     "end_at": datetime.fromtimestamp(before, zone).isoformat()}}
 
     @tool("group_work", "按真实请求人的明确要求委派长工作或文件交付，使用最近群聊作为背景。"
-          "返回任务 ID 表示已排队；任务完成后由宿主交付，不能声称已完成。",
+          "返回任务 ID 表示已排队，任务完成后由宿主交付结果。",
           summary="根据群聊委派长工作或文件交付", needs_source=True)
     async def work_tool(self, ctx: Invocation,
                         goal: Annotated[str, Field(min_length=1, description="真实请求人的目标和交付要求")]) -> dict:
