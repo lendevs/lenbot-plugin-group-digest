@@ -4,7 +4,7 @@ LenBot 的独立插件，需要 LenBot >=0.2,<1、Python >=3.13。
 
 ## 安装
 
-在「能力 → 插件」填写 `https://github.com/lendevs/lenbot-plugin-group-digest`，准备后填写配置并应用，再选择启用的群。也可以下载仓库 ZIP 导入。插件名称仍为 `group_digest`，从旧内置版迁移时先更新到已移除内置插件的宿主，再安装同名插件；保持原来的参数、选群与数据目录。
+在「插件」填写 `https://github.com/lendevs/lenbot-plugin-group-digest`，准备后填写配置并应用，再选择启用的群。也可以下载仓库 ZIP 导入。插件名称仍为 `group_digest`，从旧内置版迁移时先更新到已移除内置插件的宿主，再安装同名插件；保持原来的参数、选群与数据目录。
 
 群聊总结和长工作委派。在「插件」页启用，并选择在哪些群使用。
 
@@ -68,3 +68,7 @@ uv run --project /path/to/LenBot --no-sync pytest -q -c pyproject.toml tests
 CI 调用 LenBot 的可复用工作流，跟随宿主 master 测试。catalog-entry.json 记录目录条目的安装来源。
 
 本机生成 ZIP（LenBot 仓库与本仓库放在同一目录下）：`uv run --no-project --python 3.13 python ../LenBot/scripts/package_plugin.py . /tmp/plugin.zip`。打包取 Git 已跟踪的运行源码和资源，新增文件需先加入 Git。
+
+## 宿主能力
+
+清单声明 `send`、`history`、`generate`、`delegate`、`schedule` 五项宿主能力。插件运行在宿主进程中（`isolation = "inline"`），功能由工具和后台协程实现。本机协议测试使用临时配置和模拟发送。

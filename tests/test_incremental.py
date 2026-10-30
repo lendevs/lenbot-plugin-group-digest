@@ -175,3 +175,14 @@ async def test_duplicate_report_returns_actual_running_window(package):
         gate.set()
         await bot.wait_tasks('群聊总结 ')
         assert len(bot.deliveries) == 1
+
+
+@pytest.mark.asyncio
+async def test_group_work_rejects_missing_cross_scene_and_bot_sources_before_delegate(package):
+    async with PluginTest(package, scenes=[SCENE, OTHER]) as bot:
+        for source in (bot.add_message('其他群要求', scene=OTHER),
+                       bot.add_message('机器人自己要求', sender='onebot:90001')):
+            with pytest.raises(ValueError, match='真实请求消息'):
+                await bot.tool('group_work', {'goal': '整理活动', 'source_message_id': source.platform_message_id})
+        with pytest.raises(ValueError):
+            await bot.tool('group_work', {'goal': '整理活动'})
