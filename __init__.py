@@ -18,12 +18,13 @@ MIN_MESSAGES = 5
 
 
 def recent(ctx: Invocation) -> str:
+    messages = ctx.recent_messages(ctx.config["message_limit"])
+    names = daily.speaker_names(messages)
     return json.dumps([
         {"sender": message.sender.uid, "nickname": message.sender.card or message.sender.nickname,
          "time": message.time, "is_self": message.is_self, "send_status": message.send_status,
-         "text": "".join(segment.data["text"] if segment.type == "text" else f"[{segment.type}]"
-                         for segment in message.segments)}
-        for message in ctx.recent_messages(ctx.config["message_limit"])
+         "text": daily.message_text(message, names)}
+        for message in messages
         if ctx.message is None or message.id != ctx.message.id
     ], ensure_ascii=False)
 

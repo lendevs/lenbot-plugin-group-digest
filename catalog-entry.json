@@ -6,7 +6,7 @@
     "LEN5010"
   ],
   "license": "AGPL-3.0-only",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "interface": 1,
   "requires_lenbot": ">=0.2,<1",
   "category": "工作工具",

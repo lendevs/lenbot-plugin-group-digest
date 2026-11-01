@@ -1,5 +1,5 @@
 name = "group_digest"
-version = "1.3.2"
+version = "1.3.3"
 interface = 1
 permissions = ["send", "history", "generate", "delegate", "schedule"]
 requires_lenbot = ">=0.2,<1"

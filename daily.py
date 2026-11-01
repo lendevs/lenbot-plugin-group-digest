@@ -13,7 +13,8 @@ from pathlib import Path
 import re
 from zoneinfo import ZoneInfo
 
-from len_bot.plugin import PluginContext
+from len_bot.plugin import ChatMessage, PluginContext
+from len_bot.plugin import message_text as chat_text
 
 PROMPTS = Path(__file__).with_name("prompts")
 PAGE = 500
@@ -77,23 +78,15 @@ class Summary:
         return "\n".join(lines)
 
 
-def message_text(message) -> str:
-    parts = []
-    for segment in message.segments:
-        data = segment.data
-        if segment.type == "text":
-            parts.append(str(data.get("text", "")))
-        elif segment.type == "at":
-            parts.append("@" + str(data.get("name") or data.get("qq") or ""))
-        elif segment.type == "image":
-            parts.append("[图片]")
-        elif segment.type == "face":
-            parts.append("[表情]")
-        elif segment.type == "record":
-            parts.append("[语音]")
-        elif segment.type != "reply":
-            parts.append(f"[{segment.type}]")
-    return " ".join("".join(parts).split())
+def speaker_names(messages: list[ChatMessage]) -> dict[str, str]:
+    """Display names of the senders in these messages, for mentions of them."""
+    return {message.sender.uid: message.sender.card or message.sender.nickname for message in messages
+            if message.sender.card or message.sender.nickname}
+
+
+def message_text(message: ChatMessage, names: dict[str, str] | None = None) -> str:
+    """One line of words; media and mentions use the chat context's placeholders."""
+    return " ".join(chat_text(message, names=names).split())
 
 
 def read_window(ctx: PluginContext, scene: str, after: float, before: float) -> list[Line]:
@@ -106,12 +99,13 @@ def read_window(ctx: PluginContext, scene: str, after: float, before: float) -> 
         if len(page) < PAGE:
             break
     # Commands to bots (/群日报 and the like) are not conversation.
-    kept = [message for message in messages
-            if not message.recalled and message.send_status in ("received", "sent")
-            and message_text(message) and not message_text(message).startswith("/")]
+    names = speaker_names(messages)
+    texts = [(message, message_text(message, names)) for message in messages
+             if not message.recalled and message.send_status in ("received", "sent")]
+    kept = [(message, text) for message, text in texts if text and not text.startswith("/")]
     return [Line(index, message.time, message.sender.uid, message.sender.card or message.sender.nickname or message.sender.uid,
-                 message_text(message), message.is_self, message.id)
-            for index, message in enumerate(kept, 1)]
+                 text, message.is_self, message.id)
+            for index, (message, text) in enumerate(kept, 1)]
 
 
 def render(line: Line, zone: ZoneInfo) -> str:

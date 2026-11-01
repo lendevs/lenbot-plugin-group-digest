@@ -144,3 +144,20 @@ async def test_bad_hours_and_daily_time_are_reported():
     with pytest.raises(RuntimeError, match='22:00'):
         async with PluginTest(PACKAGE, config=config(daily_time='晚上十点', daily_scenes=[SCENE])):
             pass
+
+
+def test_message_lines_name_mentions_and_mark_media():
+    from group_digest import daily
+    ann = ChatMessage(id='1', platform='onebot', bot_id='onebot:90001', scene=SCENE, platform_message_id='1',
+                      sender=Sender('onebot:70001', '小满', None, None), time=0.0,
+                      segments=[Segment('text', {'text': '周六'})], reply_to=None, mentions_bot=False,
+                      is_self=False, send_status='received')
+    bea = ChatMessage(id='2', platform='onebot', bot_id='onebot:90001', scene=SCENE, platform_message_id='2',
+                      sender=Sender('onebot:70002', '老周', '周', None), time=1.0, reply_to='1',
+                      segments=[Segment('reply', {'id': '1'}), Segment('mention', {'user': 'onebot:70001'}),
+                                Segment('text', {'text': ' 看  这个 '}), Segment('image', {'url': 'https://example.invalid/a'}),
+                                Segment('audio', {'file': 'a.amr'}), Segment('mention', {'user': 'onebot:70009'})],
+                      mentions_bot=False, is_self=False, send_status='received')
+    names = daily.speaker_names([ann, bea])
+    assert names == {'onebot:70001': '小满', 'onebot:70002': '周'}
+    assert daily.message_text(bea, names) == '[提及 小满] 看 这个 [图片1][语音1][提及 onebot:70009]'
