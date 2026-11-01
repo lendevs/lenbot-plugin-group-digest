@@ -4,12 +4,11 @@ import asyncio
 from io import BytesIO
 import json
 from pathlib import Path
-import sys
 
 from PIL import Image as PILImage
 import pytest
 
-from len_bot.plugin import ChatMessage, Segment, Sender, Image, Text
+from len_bot.plugin import ChatMessage, Segment, Sender, Image
 from len_bot.plugin_testing import PluginTest
 
 SOURCE = Path(__file__).resolve().parents[1]
@@ -62,14 +61,14 @@ class Model:
 
 
 @pytest.fixture(autouse=True)
-def package(tmp_path, monkeypatch):
+def package(tmp_path):
     """Install a named copy to exercise the plugin against earlier 0.2 development hosts too."""
     import shutil
     target = tmp_path / 'digest_copy'
     shutil.copytree(SOURCE, target, ignore=shutil.ignore_patterns('__pycache__'))
     manifest = target / 'plugin.toml'
     manifest.write_text(manifest.read_text().replace('name = "group_digest"', 'name = "digest_copy"', 1))
-    monkeypatch.setitem(globals(), 'PACKAGE', target)
+    return target
 
 
 def config(**values) -> dict:
@@ -83,8 +82,8 @@ async def finish(bot: PluginTest) -> None:
 
 
 @pytest.mark.asyncio
-async def test_tool_returns_at_once_and_sends_a_card_with_checked_quotes():
-    async with PluginTest(PACKAGE, config=config()) as bot:
+async def test_tool_returns_at_once_and_sends_a_card_with_checked_quotes(package):
+    async with PluginTest(package, config=config()) as bot:
         lines = [message(bot, 3600 * 30, 'onebot:70009', '昨天的人', '这条在窗口外')]
         lines += [message(bot, 3600 * (20 - index), f'onebot:7000{index % 3 + 1}', ['小满', '老周', '橘子'][index % 3],
                           f'第 {index} 条：周六六点老地方') for index in range(8)]
@@ -109,8 +108,8 @@ async def test_tool_returns_at_once_and_sends_a_card_with_checked_quotes():
 
 
 @pytest.mark.asyncio
-async def test_long_day_is_read_in_batches_then_merged():
-    async with PluginTest(PACKAGE, config=config(batch_chars=2000)) as bot:
+async def test_long_day_is_read_in_batches_then_merged(package):
+    async with PluginTest(package, config=config(batch_chars=2000)) as bot:
         for index in range(120):
             message(bot, 3600 * 20 - index * 60, 'onebot:70001', '小满', f'第 {index} 条 ' + '聊天内容' * 10)
         model = Model([])
@@ -125,8 +124,8 @@ async def test_long_day_is_read_in_batches_then_merged():
 
 
 @pytest.mark.asyncio
-async def test_quiet_group_gets_a_short_note_and_no_model_call():
-    async with PluginTest(PACKAGE, config=config()) as bot:
+async def test_quiet_group_gets_a_short_note_and_no_model_call(package):
+    async with PluginTest(package, config=config()) as bot:
         message(bot, 100, 'onebot:70001', '小满', '有人吗')
         model = Model([])
         bot.host.generate = model
@@ -137,12 +136,12 @@ async def test_quiet_group_gets_a_short_note_and_no_model_call():
 
 
 @pytest.mark.asyncio
-async def test_bad_hours_and_daily_time_are_reported():
-    async with PluginTest(PACKAGE, config=config()) as bot:
+async def test_bad_hours_and_daily_time_are_reported(package):
+    async with PluginTest(package, config=config()) as bot:
         assert await bot.message('/群日报 100')
         assert '1–72' in bot.deliveries[-1].text
     with pytest.raises(RuntimeError, match='22:00'):
-        async with PluginTest(PACKAGE, config=config(daily_time='晚上十点', daily_scenes=[SCENE])):
+        async with PluginTest(package, config=config(daily_time='晚上十点', daily_scenes=[SCENE])):
             pass
 
 
@@ -161,3 +160,20 @@ def test_message_lines_name_mentions_and_mark_media():
     names = daily.speaker_names([ann, bea])
     assert names == {'onebot:70001': '小满', 'onebot:70002': '周'}
     assert daily.message_text(bea, names) == '[提及 小满] 看 这个 [图片1][语音1][提及 onebot:70009]'
+
+
+@pytest.mark.asyncio
+async def test_failed_card_delivery_is_reported(package):
+    from len_bot.plugin import Sent
+
+    async with PluginTest(package, config=config()) as bot:
+        for index in range(6):
+            message(bot, 600 - index, 'onebot:70001', '小满', f'聊天 {index}')
+        bot.host.generate = Model([])
+        async def failed_send(plugin, scene, parts, reply_to):
+            return Sent('failed', 'synthetic delivery failure')
+        bot.host.send_parts = failed_send
+        await bot.message('/群日报')
+        await finish(bot)
+        assert any('synthetic delivery failure' in error['error']
+                   for error in bot.host.plugins['digest_copy'].errors)

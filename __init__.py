@@ -82,7 +82,9 @@ class GroupDigest(Plugin):
                                                 notes=notes)
             image = await asyncio.to_thread(card.render, summary, card.find_font(self.ctx.config["font_path"]),
                                             "群聊总结")
-            await self.ctx.send_image(scene, image, summary.description())
+            sent = await self.ctx.send_image(scene, image, summary.description())
+            if sent.status == 'failed':
+                raise RuntimeError(sent.report)
         except Exception as error:
             self.ctx.report_error(f"群聊总结 {scene}", error)
             if requested:

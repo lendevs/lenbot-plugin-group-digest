@@ -118,7 +118,7 @@ async def test_hourly_notes_survive_reload_and_only_new_hour_is_analyzed(package
 @pytest.mark.asyncio
 async def test_partial_hour_reads_only_requested_messages_and_recall_invalidates_notes(package):
     async with model_source() as (url, calls), PluginTest(package, config={'incremental_scenes': [SCENE]}, now=lambda: NOW, models=models(url)) as bot:
-        outside = message(bot, 13, 5, '范围外秘密')
+        message(bot, 13, 5, '范围外秘密')
         inside = [message(bot, 13, 30 + index * 4, f'范围内 {index}') for index in range(6)]
         record = bot.host.plugins['digest_copy']
         await record.instance.prepare(Invocation(record.context, SCENE))
