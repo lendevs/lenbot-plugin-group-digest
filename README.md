@@ -22,7 +22,7 @@ LenBot 的独立插件，需要 LenBot >=0.2,<1、Python >=3.13。
 
 不计入的消息：发给 Bot 的 `/` 命令、撤回的、发送失败的；少于 5 条时不生成。
 
-卡片需要中文字体。留空「卡片字体」时依次找系统里的 PingFang、冬青黑体、Noto Sans CJK、文泉驿和微软雅黑；Docker 宿主镜像自带 Noto Sans CJK。
+卡片默认使用插件自带的 Noto Sans SC（SIL Open Font License 1.1，见 `assets/NotoSansSC-OFL.txt`）。想换字体时在「卡片字体」填写字体文件的绝对路径。
 
 ## 增量模式
 
